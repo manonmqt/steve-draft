@@ -1,0 +1,115 @@
+version: '3.8'
+
+services:
+  mockserver:
+    image: mockserver/mockserver:5.15.0
+    ports:
+      - "1080:1080"
+    environment:
+      MOCKSERVER_SERVER_INITIAL_JSON: '[{ "httpRequest": { "method": "POST", "path": "/location/123" }, "httpResponse": { "statusCode": 200, "headers": { "name": "Content-Type", "value": "application/json" }, "body": "{ \"id\": \"123\", \"message\": \"Mocked response\" }" }, "times": { "remainingTimes": 0, "unlimited": true } }]'
+    # Vous pouvez définir des volumes pour persister les mocks si nécessaire
+    # volumes:
+    #   - mockserver_data:/opt/mockserver/data
+    # networks:
+    #   - mynetwork
+
+# volumes:
+#   mockserver_data:
+
+# networks:
+#   mynetwork:
+
+  steve-kafka-topic-init:
+    container_name: steve-kafka-topic-init
+    image: bitnami/kafka:3.4.1
+    working_dir: "/kafka-init"
+    volumes:
+      - "./src/test/resources/docker/kafka:/kafka-init"
+    command: [ "/bin/bash", "create-steve-topic.sh"]
+    depends_on:
+      - steve-kafka
+
+  steve-kafka:
+    container_name: steve-kafka
+    image: bitnami/kafka:3.4.1
+    ports:
+      - "9092:9092"
+      - '29094:29094'
+    environment:
+      - KAFKA_LISTENERS=INTERNAL://steve-kafka:9092, EXTERNAL://steve-kafka:29094
+      # replace localhost with your IP in this line:
+      - KAFKA_ADVERTISED_LISTENERS=INTERNAL://steve-kafka:9092, EXTERNAL://192.168.1.85:29094
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP= INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      - KAFKA_INTER_BROKER_LISTENER_NAME= INTERNAL
+      - KAFKA_CFG_ZOOKEEPER_CONNECT=steve-zookeeper:2181
+      - ALLOW_PLAINTEXT_LISTENER=yes
+    depends_on:
+      - steve-zookeeper
+
+  steve-zookeeper:
+    container_name: steve-zookeeper
+    image: bitnami/zookeeper:latest
+    ports:
+      - "2181:2181"
+    environment:
+      - ALLOW_ANONYMOUS_LOGIN=yes
+
+  akhq:
+    image: tchiotludo/akhq:latest
+    environment:
+      AKHQ_CONFIGURATION: |
+        akhq:
+          connections:
+            docker-kafka-server:
+              properties:
+                bootstrap.servers: "steve-kafka:9092"
+    ports:
+      - 11817:8080
+
+#
+#  dldc-kafka-topic-init:
+#    container_name: dldc-kafka-topic-init
+#    image: bitnami/kafka:3.4.1
+#    working_dir: "/kafka-init"
+#    volumes:
+#      - "./src/test/resources/docker/kafka:/kafka-init"
+#    command: [ "/bin/bash", "create-dldc-topic.sh"]
+#    depends_on:
+#      - dldc-kafka
+#
+#  dldc-kafka:
+#    container_name: dldc-kafka
+#    image: bitnami/kafka:3.4.1
+#    ports:
+#      - "9092:9092"
+#      - '29094:29094'
+#    environment:
+#      - KAFKA_LISTENERS=INTERNAL://dldc-kafka:9092, EXTERNAL://dldc-kafka:29094
+#      # replace localhost with your IP in this line:
+#      - KAFKA_ADVERTISED_LISTENERS=INTERNAL://dldc-kafka:9092, EXTERNAL://localhost:29094
+#      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP= INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+#      - KAFKA_INTER_BROKER_LISTENER_NAME= INTERNAL
+#      - KAFKA_CFG_ZOOKEEPER_CONNECT=dldc-zookeeper:2181
+#      - ALLOW_PLAINTEXT_LISTENER=yes
+#    depends_on:
+#      - dldc-zookeeper
+#
+#  dldc-zookeeper:
+#    container_name: dldc-zookeeper
+#    image: bitnami/zookeeper:latest
+#    ports:
+#      - "2181:2181"
+#    environment:
+#      - ALLOW_ANONYMOUS_LOGIN=yes
+#
+#  akhq:
+#    image: tchiotludo/akhq:latest
+#    environment:
+#      AKHQ_CONFIGURATION: |
+#        akhq:
+#          connections:
+#            docker-kafka-server:
+#              properties:
+#                bootstrap.servers: "dldc-kafka:9092"
+#    ports:
+#      - 11817:8080

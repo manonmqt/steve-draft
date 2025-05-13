@@ -1,0 +1,47 @@
+spring:
+  application:
+    name: steve
+
+  ## Database
+  datasource:
+    url: jdbc:h2:mem:steve
+    driverClassName: org.h2.Driver
+    username: sa
+    password: password
+
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  h2:
+    console:
+      enabled: true
+      path: /h2
+
+steve:
+  kafka:
+    consumer:
+      topics: steve-location-topic
+
+kafka:
+  # to run en local with docker-compose repository file update localhost to your ip
+  bootstrap-servers: 192.168.1.85:29094
+  consumer:
+    group-id: steve
+    fetch-min-bytes: 2097152         # Minimum data per fetch (2 MB)
+    fetch-max-bytes: 52428800        # Maximum data per fetch (50 MB)
+    max:
+      poll:
+        records: 5 #Max 5 records per poll
+        interval: 900000  #Max poll interval 15 minute
+    request:
+      timeout: 300000 #the maximum time to wait for a request to complete
+    session:
+      timeout: 600000 # Session timeout 10 min
+    heartbeat:
+      interval: 2000
